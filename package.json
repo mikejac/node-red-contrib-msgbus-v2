@@ -1,0 +1,26 @@
+{
+    "name"         : "node-red-contrib-msgbus-v2",
+    "version"      : "0.0.1",
+    "description"  : "MQTT Bus Interface",
+    "homepage"     : "https://github.com/mikejac/node-red-contrib-msgbus-v2",
+    "scripts": {},
+    "dependencies": {
+        "mqtt":    "^1.12.0",
+        "is-utf8": "0.2.1"
+    },
+    "keywords"     : [ 
+                       "mqtt",
+                       "msgbus-v2"
+                     ],
+    "node-red"     : {
+        "nodes": {
+            "client": "client.js"
+        }
+    },
+    "repository": {
+        "type"     : "git",
+        "url"      : "https://github.com/mikejac/node-red-contrib-msgbus-v2.git"
+    },
+    "author"       : "github.com/mikejac",
+    "license"      : "Apache-2.0"
+}
