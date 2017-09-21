@@ -62,7 +62,7 @@
     });
 </script>
 -->
-
+<!--
 <script type="text/x-red" data-template-name="msgbus-v2 debug">
     <div class="form-row">
         <label for="node-input-client"><i class="fa fa-globe"></i> Server</span></label>
@@ -99,7 +99,7 @@
         }
     });
 </script>
-
+-->
 <script type="text/x-red" data-template-name="msgbus-v2 io">
     <div class="form-row">
         <label for="node-input-client"><i class="fa fa-globe"></i> Server</span></label>
@@ -110,16 +110,12 @@
         <input type="text" id="node-input-nodename" Nodename>
     </div>
     <div class="form-row">
-        <label for="node-input-service"><i class="fa fa-tag"></i> Service</span></label>
-        <input type="text" id="node-input-service" Service>
-    </div>
-    <div class="form-row">
         <label for="node-input-dataid"><i class="fa fa-tag"></i> Data Id</span></label>
         <input type="text" id="node-input-dataid" Data Id>
     </div>
     <div class="form-row">
-        <label for="node-input-datatype"><i class="fa fa-tag"></i> Data Type</span></label>
-        <input type="text" id="node-input-datatype" Data Type>
+        <label for="node-input-wdt"><i class="fa fa-tag"></i> Watchdog</span></label>
+        <input type="text" id="node-input-wdt" 60>
     </div>
     <div class="form-row">
         <label for="node-input-event"><i class="fa fa-tag"></i> Event</span></label>
@@ -129,6 +125,16 @@
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</span></label>
         <input type="text" id="node-input-name" Name>
     </div>
+    <div class="form-tips">
+        <b>Input</b><br/>
+        <code>msg.topic</code> is not used.<br/>
+        <code>msg.payload</code> is sent to the node.<br/>
+        <br/>
+        <b>Outputs</b><br/>
+        <code>1:</code> Value from node<br/>
+        <code>2:</code> Log Text<br/>
+        <code>3:</code> Online/Offline Status<br/>
+    </div>
 </script>
 
 <script type="text/javascript">
@@ -137,16 +143,15 @@
         paletteLabel: 'Bus I/O',
         defaults: {
             client: {type:"msgbus-v2-client", required:true},
-            nodename: {value:""},
-            service: {value:""},
-            dataid: {value:""},
-            datatype: {value:""},
+            nodename: {value:"", required:true},
+            dataid: {value:"", required:true},
+            wdt: { value: 60, required: true, validate:RED.validators.number() },
             event: {value:""},
             name: {value:""}
         },
         color:"#d8bfd8",
         inputs:1,
-        outputs:1,
+        outputs:3,
         icon: "bridge.png",
         label: function() {
             return this.name||"msgbus-v2 io";
@@ -228,6 +233,10 @@
         <input type="text" id="node-config-input-username" data-i18n="[placeholder]msgbus.placeholder.nodename">
     </div>
     <div class="form-row">
+        <label for="node-config-input-domain"><i class="fa fa-tag"></i> <span data-i18n="msgbus.label.domain"></span></label>
+        <input type="text" id="node-config-input-domain" data-i18n="[placeholder]msgbus.label.domain">
+    </div>
+    <div class="form-row">
         <label for="node-config-input-name"><i class="fa fa-tag"></i> <span data-i18n="msgbus.label.name"></span></label>
         <input type="text" id="node-config-input-name" data-i18n="[placeholder]msgbus.label.name">
     </div>
@@ -243,6 +252,7 @@
         defaults: {
             broker: {type:"mqtt-broker", required:true},
             nodename: {value:"", required:true},
+            domain: {value:"domain", required:true},
             name: {value:""}
         },
         color:"#4286f4",

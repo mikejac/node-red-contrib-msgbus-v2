@@ -3,6 +3,7 @@
         "label": {
             "broker": "Server",
             "nodename": "Nodename",
+            "domain": "Domain",
             "name": "Name",
 
             "qos": "QoS",
@@ -19,6 +20,7 @@
         },
         "placeholder": {
             "nodename": "Nodename e.g. an UUID",
+            "domain": "domain",
             "name": "Name",
 
             "clientid": "Leave blank for auto generated",

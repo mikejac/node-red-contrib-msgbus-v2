@@ -37,35 +37,14 @@ domain/msgbus/v2/broadcast/client001/Outlet.03.Update {"on": false}
 
 module.exports = function(RED) {
     "use strict";
-    //var mqtt   = require('mqtt')
 
-    function matchTopic(ts,t) {
+    /*function matchTopic(ts,t) {
         if (ts == "#") {
             return true;
         }
         var re = new RegExp("^"+ts.replace(/([\[\]\?\(\)\\\\$\^\*\.|])/g,"\\$1").replace(/\+/g,"[^/]+").replace(/\/#$/,"(\/.*)?")+"$");
         return re.test(t);
-    }
-
-    var ClassType = {
-	    ClassTypeInvalid:			0,
-	    ClassTypeDevice:			1,
-	    ClassTypeController:		2,
-	    ClassTypeDeviceSvc:			3,
-	    ClassTypeControllerSvc:		4
-    };
-
-    var classTypeTxt = {
-        classTypeDeviceTxt:			"device",
-        classTypeControllerTxt:		"controller",
-        classTypeDeviceSvcTxt: 		"device_svc",
-        classTypeControllerSvcTxt:	"controller_svc"
-    };
-
-	var MsgbusStatusInvalid         = 0
-	var MsgbusStatusOnline          = 1
-	var MsgbusStatusOffline         = 2
-	var MsgbusStatusDisconnected    = 3
+    }*/
 
     //
     // topic elements
@@ -74,46 +53,17 @@ module.exports = function(RED) {
     var msgbusVersion               = "v2"
 
     var msgbusDestBroadcast         = "broadcast"
-
-    //
-    // service elements
-    //
-    var msgbusServiceStatus         = "status"
-    var msgbusServiceDebug          = "debug"
-    var msgbusServiceOnramp         = "onramp"
-    var msgbusServiceOfframp        = "offramp"
-
-    //
-    // data id
-    //
-    var msgbusIdStatus              = "status"
-    var msgbusIdDebug               = "debug"
-
-    //
-    // data types
-    //
-	var msgbusTypeStatusCtl		    = "status_ctl"          // controller
-	var msgbusTypeStatusDvc		    = "status_dvc"          // device
-	var msgbusTypeDebug			    = "debug"
-	var msgbusTypeInfo			    = "info"
-    var msgbusTypeString            = "string"
-	var msgbusTypeBool              = "bool"
-	var msgbusTypeFloat             = "float"
-	var msgbusTypeUInt8             = "uint8"
-	var msgbusTypeUInt16            = "uint16"
-	var msgbusTypeUInt32            = "uint32"
-	var msgbusTypeInt32             = "int32"
-	var msgbusTypeUInt64            = "uint64"
-	var msgbusTypeData              = "data"
-    var msgbusTypeTLV8              = "tlv8"
  
     // domain/msgbus/v2/broadcast/<RemoteNodename>/<Outlet.03> + ".Update"
 
     var msgbusUpdate                = "Update"
+    var msgbusWrite                 = "Write"
+    var msgbusRead                  = "Read"
+    var msgbusRPC                   = "rpc"
 
     //
-    function topicUpdateSubscribe(mqtt, nodename, dataid) {
-        return  mqtt.domain + "/" +
+    function topicUpdateSubscribe(domain, nodename, dataid) {
+        return  domain + "/" +
                 msgbusSelf + "/" + msgbusVersion + "/" +
                 msgbusDestBroadcast + "/" +                     // destination
                 nodename + "/" +                                // source
@@ -121,113 +71,16 @@ module.exports = function(RED) {
     }
 
     //
-    function topicStatusPublish(mqtt) {
-	    return  mqtt.domain + "/" +
-                msgbusSelf + "/" + msgbusVersion + "/" +
-                msgbusDestBroadcast + "/" +                     // destination
-                mqtt.nodename + "/" +                           // source
-                msgbusServiceStatus + "/" +                     // service
-                msgbusIdStatus + "/" +                          // data id
-                msgbusTypeStatusCtl                             // data type
+    function topicRPCPublish(nodename, dataId) {
+        return  nodename + "/" +
+                msgbusRPC + "/" +
+                dataId + "." + msgbusWrite
     }
 
     //
-    function topicStatusSubscribe(mqtt, source) {
-	    return  mqtt.domain + "/" +
-                msgbusSelf + "/" + msgbusVersion + "/" +
-                msgbusDestBroadcast + "/" +                     // destination
-                source + "/" +                                  // source
-                msgbusServiceStatus + "/" +                     // service
-                msgbusIdStatus + "/" +                          // data id
-                "+"                                             // data type
-    }
-
-    //
-    function topicDebugSubscribe(mqtt, source) {
-	    return  mqtt.domain + "/" +
-                msgbusSelf + "/" + msgbusVersion + "/" +
-                msgbusDestBroadcast + "/" +                     // destination
-                source + "/" +                                  // source
-                msgbusServiceDebug + "/" +                      // service
-                msgbusIdDebug + "/" +                           // data id
-                "+"                                             // data type
-    }
-
-    //
-    function topicValueSubscribe(mqtt, nodename, dataid, datatype) {
-	    return  mqtt.domain + "/" +
-                msgbusSelf + "/" + msgbusVersion + "/" +
-                msgbusDestBroadcast + "/" +                     // destination
-                nodename + "/" +                                // source
-                msgbusServiceOnramp + "/" +                     // service
-                dataid + "/" +                                  // data id
-                datatype                                        // data type
-    }
-
-    //
-    function topicValuePublish(mqtt, nodename, dataid, datatype) {
-	    return  mqtt.domain + "/" +
-                msgbusSelf + "/" + msgbusVersion + "/" +
-                nodename + "/" +                                // destination
-                mqtt.nodename + "/" +                           // source
-                msgbusServiceOfframp + "/" +                    // service
-                dataid + "/" +                                  // data id
-                datatype                                        // data type
-    }
-
-    //
-    function statusMessage(mqtt, status, seconds) {
-        var topic = topicStatusPublish(mqtt)
-
-        var d = {
-            "d": {
-                "_type":       "status",
-                "nodename":    mqtt.nodename,
-                "platform_id": mqtt.platformId
-            }
-        }
-
-        switch(mqtt.classType) {
-            case ClassType.ClassTypeDevice:
-                d["d"]["class"] = classTypeTxt.classTypeDeviceTxt
-                break
-
-            case ClassType.ClassTypeController:
-                d["d"]["class"] = classTypeTxt.classTypeControllerTxt
-                break
-
-            case ClassType.ClassTypeDeviceSvc:
-                d["d"]["class"] = classTypeTxt.classTypeDeviceSvcTxt
-                break
-
-            case ClassType.ClassTypeControllerSvc:
-                d["d"]["class"] = classTypeTxt.classTypeControllerSvcTxt
-                break
-        }
-
-        switch(status) {
-            case MsgbusStatusOnline:
-                d["d"]["status"] = "online"
-                d["d"]["uptime"] = seconds
-                break
-
-            case MsgbusStatusOffline:
-                d["d"]["status"] = "offline"
-                d["d"]["uptime"] = seconds
-                break
-
-            case MsgbusStatusDisconnected:
-                d["d"]["status"] = "disconnected"
-                d["d"]["uptime"] = null
-                break
-        }
-
-        var data = {
-            topic:  topic,
-            msg:    JSON.stringify(d)
-        }
-
-        return data
+    function topicRPCSubscribe(mynodename, nodename, dataId) {
+        return  mynodename + "_" + nodename + "_" + dataId + "/" +
+                msgbusRPC
     }
 
 	/******************************************************************************************************************
@@ -235,252 +88,255 @@ module.exports = function(RED) {
 	 *
 	 */
     function MQTTMsgBusClientNode(config) {
-        //console.log("MQTTMsgBusClientNode(): config = ", config)
-
         RED.nodes.createNode(this, config)
 
-        this.domain     = "domain"
-        this.platformId = "nodered"
-
-        //this.classType  = ClassType.ClassTypeControllerSvc
         this.nodename   = config.nodename
+        this.domain     = config.domain
+        this.qos        = 0
+        this.retain     = false
         this.broker     = config.broker
         this.brokerConn = RED.nodes.getNode(this.broker)
-
-        //var willMsg = statusMessage(this, MsgbusStatusDisconnected, 0)
-
-        /*this.brokerConn.willTopic = willMsg.topic 
-        this.brokerConn.options.will = {
-            topic:   this.brokerConn.willTopic,
-            payload: willMsg.msg,
-            qos:     2,
-            retain:  true
-        }*/
-
-        //var birthMsg = statusMessage(this, MsgbusStatusOnline, 0)
-
-        /*this.brokerConn.birthTopic = birthMsg.topic 
-        this.brokerConn.birthMessage = {
-            topic:   this.brokerConn.birthTopic,
-            payload: birthMsg.msg,
-            qos:     2,
-            retain:  true
-        }*/
 
         var node = this
 
         if (this.brokerConn) {
-            //console.log("MQTTMsgBusClientNode(): node.brokerConn = ", node.brokerConn)
             node.brokerConn.register(node)
         } else {
             node.log(RED._("msgbus.errors.missing-config"))
         }
 
-		//var tick = setInterval(function() {
-        //    chronos(node, node.brokerConn)
-		//}, 60000); // trigger every 60 secs
-
         this.on('close', function(done) {
             node.brokerConn.deregister(node, done)
         })
+
+        this.users = {}
+        
+        // define functions called by Msgbus nodes
+        this.register = function(msgbusNode){
+            RED.log.debug("MQTTMsgBusClientNode(): register")
+            node.users[msgbusNode.id] = msgbusNode
+
+            if (Object.keys(node.users).length === 1) {
+                //node.connect()
+            }
+
+            var topic = topicRPCSubscribe(node.nodename, msgbusNode.nodename, msgbusNode.dataId)
+
+            RED.log.debug("MQTTMsgBusClientNode(): register; topic = " + topic)
+
+            this.brokerConn.subscribe(topic, node.qos, function(topic, payload, packet) {
+                var obj = JSON.parse(payload)
+
+                for (var id in node.users) {
+                    if (node.users.hasOwnProperty(id)) {
+                        var t = node.nodename + "_"  + node.users[id].nodename + "_" + node.users[id].dataId
+                        RED.log.debug("MQTTMsgBusClientNode(): register, subscribe; t = " + t)
+                        
+                        if (obj.dst == t) {
+                            RED.log.debug("MQTTMsgBusClientNode(): register, subscribe; found node")
+                            node.users[id].rpcReply(obj.result)
+                        }
+                    }
+                }
+            }, node.id)
+        }
+    
+        this.deregister = function(msgbusNode, done){
+            RED.log.debug("MQTTMsgBusClientNode(): deregister")
+            delete node.users[msgbusNode.id];
+
+            if (node.closing) {
+                return done()
+            }
+
+            if (Object.keys(node.users).length === 0) {
+                //if (node.blynk && node.client.connected) {
+                    //return node.client.end(done);
+                //} else {
+                    //node.client.end();
+                    return done()
+                //}
+            }
+
+            done()
+        }
+
+        this.updateSubscribe = function(nodename, dataId, qos, callback, ref) {
+            RED.log.debug("MQTTMsgBusClientNode(): updateSubscribe")
+
+            var topic = topicUpdateSubscribe(node.domain, nodename, dataId)
+
+            node.brokerConn.subscribe(topic, qos, callback, ref)
+        }
+
+        this.rpcPublish = function (nodename, id, dataId, payload) {
+            RED.log.debug("MQTTMsgBusClientNode(): rpcPublish")
+
+            var d = {
+                "src": node.nodename + "_" + nodename + "_" + dataId,
+                "id": id,
+                "method": dataId + "." + msgbusWrite,
+                "args": payload
+            }
+
+            var topic = topicRPCPublish(nodename, dataId)
+
+            RED.log.debug("MQTTMsgBusClientNode(): rpcPublish; topic = " + topic)
+            
+            var msg = {
+                "topic":    topic,
+                "payload":  JSON.stringify(d),
+                "qos":      node.qos,
+                "retain":   node.retain
+            }
+        
+            node.brokerConn.publish(msg)
+        }
+
+        this.status = function(s) {
+            RED.log.debug("MQTTMsgBusClientNode(): status")
+
+            for (var id in node.users) {
+                if (node.users.hasOwnProperty(id)) {
+                    node.users[id].status(s);
+                }
+            }
+        }
     }
 
     RED.nodes.registerType("msgbus-v2-client", MQTTMsgBusClientNode)
     
-    //
-    //
-    //
-    function chronos(node, mqtt) {
-        var d = {
-            "d": {
-                "_type":    "time",
-                "value":    Math.floor(Date.now() / 1000)
-            }
-        }
-
-        //
-        // build topic
-        //
-        var topic = topicValuePublish(node, msgbusDestBroadcast, "chronos", "uint32")
-
-        var m = {}
-        m.topic   = topic
-        m.payload = JSON.stringify(d)
-        m.qos     = 0
-        m.retain  = 0
-
-        //console.log("MQTTMsgBusValueNode(publish): msg =", m)
-        mqtt.publish(m)  // send the message
-    }
-
 	/******************************************************************************************************************
 	 * 
 	 *
 	 */
-    /*function MQTTMsgBusStatusInNode(config) {
+    function MQTTMsgBusValueNode(config) {
         RED.nodes.createNode(this, config)
 
-        this.qos = parseInt(config.qos)
+        this.qos        = 0
+        this.retain     = false
+        this.nodename   = config.nodename
+        this.dataId     = config.dataid
+        this.event      = config.event
+        this.wdt        = -1
+        this.wdtStatus  = -1
+        this.alive      = null
+        this.lastVal    = {}
+        this.rpccnt     = 1
 
-        if (isNaN(this.qos) || this.qos < 0 || this.qos > 2) {
-            this.qos = 2
+        if (config.wdt > 0) {
+            this.wdt = config.wdt * 1000
         }
-
-        this.source = config.source
         
-        if (typeof this.source === 'undefined'){
-            this.source = "+"
-        } else if (this.source == "") {
-            this.source = "+"
-        }
-
         this.client     = config.client
         this.clientConn = RED.nodes.getNode(this.client)
 
-        this.broker     = this.clientConn.broker
-        this.brokerConn = RED.nodes.getNode(this.broker)
+        if (!this.clientConn) {
+            this.error(RED._("msgbus.errors.missing-config"))
+            return
+        }
 
         var node = this
 
-        if (this.brokerConn) {
+        if (this.clientConn) {
             this.status({fill:"red", shape:"ring", text:"node-red:common.status.disconnected"})
 
-            this.topic = topicStatusSubscribe(this.clientConn, this.source)
+            node.clientConn.register(this)
+            
+            startAliveTimer(node)
 
-            node.brokerConn.register(this)
-
-            this.brokerConn.subscribe(this.topic, this.qos, function(topic, payload, packet) {
-                onStatusHandler(node, node.brokerConn, topic, payload)
+            this.clientConn.updateSubscribe(this.nodename, this.dataId, this.qos, function(topic, payload, packet) {
+                RED.log.debug("MQTTMsgBusValueNode(1): payload = " + payload.toString())
+                onUpdateHandler(node, node.brokerConn, topic, payload)
             }, this.id)
 
-            if (this.brokerConn.connected) {
-                node.status({fill:"green", shape:"dot", text:"node-red:common.status.connected"})
+            this.rpcReply = function(reply) {
+                RED.log.debug("MQTTMsgBusValueNode(rpcReply)")
+
+                var msg = {
+                    topic:   "rpc",
+                    payload: reply
+                }
+    
+                var l = timeNowString()
+                var msgLog = {
+                    topic:   "log",
+                    payload: l + " > " + node.nodename + ", " + node.dataId + ": " + JSON.stringify(reply)
+                }
+    
+                startAliveTimer(node)
+
+                node.send([msg, msgLog, null])
             }
 
-            this.on('close', function(done) {
-                if (node.brokerConn) {
-                    node.brokerConn.unsubscribe(node.topic, node.id)
-                    node.brokerConn.deregister(node, done)
-                }
-            })
-        } else {
-            this.error(RED._("msgbus.errors.missing-config"))
-        }
-    }*/
+            this.on("input", function(msg) {
+                RED.log.debug("MQTTMsgBusValueNode(input)")
 
-    //RED.nodes.registerType("msgbus-v2 status", MQTTMsgBusStatusInNode)
+                var event
+                var dataType
 
-    //
-    //
-    //
-    /*function onStatusHandler(node, mqtt, topic, payload) {
-        var tokenizer = topic.split("/")
-        var count     = tokenizer.length
+                if (msg.hasOwnProperty("event")) {
+                    event = msg.event.toLowerCase()
 
-        if (count != 8) {
-            node.error("onStatusHandler(): invalid topic; count != 8 --" + topic)
-        } else if (tokenizer[0] != node.clientConn.domain) {
-            node.error("onStatusHandler(): invalid topic; not our domain -- " + topic)
-        } else if(tokenizer[1] != msgbusSelf) {
-            node.error("onStatusHandler(): invalid topic; not our bus -- " + topic)
-        } else if (tokenizer[2] != msgbusVersion) {
-            node.error("onStatusHandler(): invalid topic; not our version -- " + topic)
-        } else if (tokenizer[4] != node.clientConn.nodename) {
-            var nodename = tokenizer[4]
-            var service  = tokenizer[5]
-            var dataId   = tokenizer[6]
-            var dataType = tokenizer[7]
-
-            try {
-                var obj = JSON.parse(payload.toString())
-
-                // validate object
-                if (!obj.hasOwnProperty("d")) {
-                    node.error("onStatusHandler(): invalid object; 'd' is missing; " + payload.toString())
-                } else if (!obj.d.hasOwnProperty("_type")) {
-                    node.error("onStatusHandler(): invalid object; 'd._type' is missing; " + payload.toString())
-                } else if (!obj.d.hasOwnProperty("status")) {
-                    node.error("onStatusHandler(): invalid object; 'd.status' is missing; " + payload.toString())
-                } else if (!obj.d.hasOwnProperty("uptime")) {
-                    node.error("onStatusHandler(): invalid object; 'd.uptime' is missing; " + payload.toString())
-                } else if (!obj.d.hasOwnProperty("nodename")) {
-                    node.error("onStatusHandler(): invalid object; 'd.nodename' is missing; " + payload.toString())
-                } else if (!obj.d.hasOwnProperty("platform_id")) {
-                    node.error("onStatusHandler(): invalid object; 'd.platform_id' is missing; " + payload.toString())
-                } else if (!obj.d.hasOwnProperty("class")) {
-                    node.error("onStatusHandler(): invalid object; 'd.class' is missing; " + payload.toString())
-                } else if (obj.d._type != "status") {
-                    node.error("onStatusHandler(): invalid content of 'd._type'; " + payload.toString())
-                } else {
-                    var d = {
-                        type:       "status",
-                        nodename:   obj.d.nodename,
-                        platformId: obj.d.platform_id,
-                        uptime:     obj.d.uptime,
-                        classType:  obj.d.class
-                    }
-
-                    var msg = { payload: d }
-
-                    if (obj.d.status == "online") {
-                        node.send([msg, null, null])
-                    } else if (obj.d.status == "offline") {
-                        node.send([null, msg, null])
-                    } else if (obj.d.status == "disconnected") {
-                        node.send([null, null, msg])
+                    if (msg.hasOwnProperty("format")) {
+                        dataType = msg.format
+                    } else if (msg.hasOwnProperty("hap")) {
+                        // extract data type
+                        dataType = msg.hap.characteristic.props.format
                     } else {
-                        node.error("invalid content of 'd.status'; " + obj.d.status)
+                        RED.log.error("MQTTMsgBusValueNode(input): unable to locate datatype in message")
+                        return
                     }
+                } else if(typeof msg.payload === 'object') {
+                    //console.log("MQTTMsgBusValueNode(): msg is object")
+
+                    /*if (msg.payload.hasOwnProperty("event")) {
+                        event = msg.payload.event.toLowerCase()
+                    } else {
+                        RED.log.error("MQTTMsgBusValueNode(input): msg.payload object does not contain 'event'")
+                        return
+                    }*/
+
+                    /*if (msg.payload.hasOwnProperty("datatype")) {
+                        dataType = msg.payload.datatype
+                    } else {
+                        RED.log.error("MQTTMsgBusValueNode(input): msg.payload object does not contain 'datatype'")
+                        return
+                    }*/
+
+                    /*if (msg.payload.hasOwnProperty("value")) {
+                        msg.payload = msg.payload.value
+                    } else {
+                        RED.log.error("MQTTMsgBusValueNode(input): msg.payload object does not contain 'value'")
+                        return
+                    }*/
+                } else {
+                    event    = msg.topic.toLowerCase()
+                    dataType = node.dataType
                 }
-            } catch(error) {
-                node.error(error)
-            }
-        }
-    }*/
 
-	/******************************************************************************************************************
-	 * 
-	 *
-	 */
-    function MQTTMsgBusDebugInNode(config) {
-        RED.nodes.createNode(this, config)
+                /*var topicNotExist = node.lastVal[event] === undefined
+                
+                if (!topicNotExist) {
+                    if (node.lastVal[event] != msg.payload) {
+                        RED.log.debug("MQTTMsgBusValueNode(): unequal")
+                        node.lastVal[event] = msg.payload
+                    } else {
+                        RED.log.debug("MQTTMsgBusValueNode(): equal, not sending")
+                        return
+                    }
+                } else {
+                    RED.log.debug("MQTTMsgBusValueNode(): not exist")
+                    node.lastVal[event] = msg.payload
+                }*/
 
-        this.qos = 0
-        this.source = config.source
-        
-        if (typeof this.source === 'undefined'){
-            this.source = "+"
-        } else if (this.source == "") {
-            this.source = "+"
-        }
-
-        this.client     = config.client
-        this.clientConn = RED.nodes.getNode(this.client)
-
-        this.broker     = this.clientConn.broker
-        this.brokerConn = RED.nodes.getNode(this.broker)
-
-        var node = this
-
-        if (this.brokerConn) {
-            this.status({fill:"red", shape:"ring", text:"node-red:common.status.disconnected"})
-
-            this.topic = topicDebugSubscribe(this.clientConn, this.source)
-
-            node.brokerConn.register(this)
-
-            this.brokerConn.subscribe(this.topic, this.qos, function(topic, payload, packet) {
-                onDebugHandler(node, node.brokerConn, topic, payload)
-            }, this.id)
-
-            if (this.brokerConn.connected) {
-                node.status({fill:"green", shape:"dot", text:"node-red:common.status.connected"})
-            }
+                node.clientConn.rpcPublish(node.nodename, node.rpccnt, node.dataId, msg.payload)
+                node.rpccnt++
+            })
 
             this.on('close', function(done) {
-                if (node.brokerConn) {
-                    node.brokerConn.unsubscribe(node.topic, node.id)
-                    node.brokerConn.deregister(node, done)
+                if (node.clientConn) {
+                    node.clientConn.deregister(node, done)
                 }
             })
         } else {
@@ -488,43 +344,49 @@ module.exports = function(RED) {
         }
     }
 
-    RED.nodes.registerType("msgbus-v2 debug", MQTTMsgBusDebugInNode)
+    RED.nodes.registerType("msgbus-v2 io", MQTTMsgBusValueNode)
 
     //
     //
     //
-    function onDebugHandler(node, mqtt, topic, payload) {
+    function onUpdateHandler(node, mqtt, topic, payload) {
+        RED.log.debug("onUpdateHandler(): topic = " + topic)
+
         var tokenizer = topic.split("/")
         var count     = tokenizer.length
 
-        if (count != 8) {
-            node.error("onStatusHandler(): invalid topic; count != 8 --" + topic)
+        if (count != 6) {
+            node.error("onUpdateHandler(): invalid topic; count != 6 -- " + topic)
         } else if (tokenizer[0] != node.clientConn.domain) {
-            node.error("onStatusHandler(): invalid topic; not our domain -- " + topic)
+            node.error("onUpdateHandler(): invalid topic; not our domain -- " + topic)
         } else if(tokenizer[1] != msgbusSelf) {
-            node.error("onStatusHandler(): invalid topic; not our bus -- " + topic)
+            node.error("onUpdateHandler(): invalid topic; not our bus -- " + topic)
         } else if (tokenizer[2] != msgbusVersion) {
-            node.error("onStatusHandler(): invalid topic; not our version -- " + topic)
+            node.error("onUpdateHandler(): invalid topic; not our version -- " + topic)
         } else if (tokenizer[4] != node.clientConn.nodename) {
             var nodename = tokenizer[4]
-            var service  = tokenizer[5]
-            var dataId   = tokenizer[6]
-            var dataType = tokenizer[7]
+            var dataId   = tokenizer[5]
 
-            var msg = { payload: payload.toString() }
-            msg.type        = "debug"
-            msg.nodename    = nodename
-            msg.service     = service
-            msg.format      = msgbusTypeString
+            RED.log.debug("onUpdateHandler(): nodename = " + nodename)
+            RED.log.debug("onUpdateHandler(): dataId   = " + dataId)
 
-            if (dataType == msgbusTypeInfo) {
-                node.send([msg, null])
-            } else if (dataType == msgbusTypeDebug) {
-                node.send([null, msg])
-            } else {
-                node.error("onDebugHandler(): invalid type; " + dataType)
+            var obj = JSON.parse(payload.toString())
+            var msg = {
+                topic:   "update",
+                payload: obj
             }
 
+            var l = timeNowString()
+            var msgLog = {
+                topic:   "log",
+                payload: l + " > " + node.nodename + ", " + node.dataId + ": " + payload.toString()
+            }
+
+            startAliveTimer(node)
+
+            node.send([msg, logString(node, payload.toString()), null])
+        } else {
+            RED.log.debug("onValueHandler(): node.clientConn.nodename =", node.clientConn.nodename)
         }
     }
 
@@ -631,268 +493,94 @@ module.exports = function(RED) {
 	 * 
 	 *
 	 */
-    function MQTTMsgBusValueNode(config) {
-        RED.nodes.createNode(this, config)
-        RED.log.debug("MQTTMsgBusValueNode(): config =", config)
+    function logString(node, data) {
+        var l = timeNowString()
 
-        this.qos        = 0
-        this.retain     = false
-        this.nodename   = config.nodename
-        this.service    = config.service
-        this.dataId     = config.dataid
-        //this.dataType   = config.datatype
-        this.event      = config.event
-        this.subscribed = false
-        this.lastVal    = {}
+        var msgLog = {
+            topic:   "log",
+            payload: l + " > " + node.nodename + ", " + node.dataId + ": " + data
+        }
+    
+        return msgLog
+    }
+	/******************************************************************************************************************
+	 * homemade - can't find a way to change the locale :-(
+	 *
+	 */
+    function timeNowString() {
+        var ts_hms = new Date()
+        
+        var nowText =   ts_hms.getFullYear() + '-' + 
+                        ("0" + (ts_hms.getMonth() + 1)).slice(-2) + '-' + 
+                        ("0" + (ts_hms.getDate())).slice(-2) + ' ' +
+                        ("0" + ts_hms.getHours()).slice(-2) + ':' +
+                        ("0" + ts_hms.getMinutes()).slice(-2) + ':' +
+                        ("0" + ts_hms.getSeconds()).slice(-2)
 
-        this.client     = config.client
-        this.clientConn = RED.nodes.getNode(this.client)
-        //console.log("MQTTMsgBusValueNode(): this.clientConn =", this.clientConn)
 
-        if (!this.clientConn) {
-            //console.log("MQTTMsgBusValueNode(): !this.clientConn, dataId =", this.dataId)
-            this.error(RED._("msgbus.errors.missing-config"))
+        /*var now     =   new Date()
+
+        var h       = ("0" + (now.getHours())).slice(-2)
+        var m       = ("0" + (now.getMinutes())).slice(-2)
+        var s       = ("0" + (now.getSeconds())).slice(-2)
+
+        var nowText = h + ":" + m + ":" + s*/
+
+        return nowText
+    }
+	/******************************************************************************************************************
+	 * 
+	 *
+	 */
+    function startAliveTimer(node) {
+        if (node.wdt <= 0) {
             return
         }
 
-        //this.nodenameSelf   = this.clientConn.nodename
-
-        this.broker         = this.clientConn.broker
-        this.brokerConn     = RED.nodes.getNode(this.broker)
-
-        var node = this
-
-        if (this.brokerConn) {
-            this.status({fill:"red", shape:"ring", text:"node-red:common.status.disconnected"})
-
-            node.brokerConn.register(this)
-
-            if (    this.subscribed == false && 
-                    typeof this.nodename !== 'undefined' && 
-                    this.nodename != "" &&
-                    typeof this.dataId !== 'undefined' && 
-                    this.dataId != "") {
- /*
- RPC Read
-client001/rpc {"src":"mos-1505217650","id":2185528158683,"method":"Outlet.01.Read"}
-
-mos-1505217650/rpc {"id":2185528158683,"src":"client001","dst":"mos-1505217650","result":{"on": false}}
-
-RPC Write
-client001/rpc {"src":"mos-1505225145","id":2087105759017,"method":"Outlet.01.Write","args":{"on":false}}
-
-mos-1505225145/rpc {"id":2087105759017,"src":"client001","dst":"mos-1505225145","result":{"on": false}}
-
-Updates
-domain/msgbus/v2/broadcast/client001/Outlet.03.Update {"on": false}
-
-domain/msgbus/v2/<MyNodename>/rpc
-domain/msgbus/v2/broadcast/<RemoteNodename>/<Outlet.03> + "Update"
- */
-                this.topic      = topicUpdateSubscribe(this.clientConn, this.nodename, this.dataId)
-                //this.topic      = topicValueSubscribe(this.clientConn, this.nodename, this.dataId, "+")
-                this.subscribed = true
-
-                RED.log.debug("MQTTMsgBusValueNode(1): dataid =", this.dataId)
-                RED.log.debug("MQTTMsgBusValueNode(1): topic  =", this.topic)
-
-                this.brokerConn.subscribe(this.topic, this.qos, function(topic, payload, packet) {
-                    RED.log.debug("MQTTMsgBusValueNode(1): payload =", payload.toString())
-                    onValueHandler(node, node.brokerConn, topic, payload)
-                }, this.id)
-            }
-
-            if (this.brokerConn.connected) {
-                node.status({fill:"green", shape:"dot", text:"node-red:common.status.connected"})
-            }
-
-            this.on("input", function(msg) {
-                RED.log.debug("MQTTMsgBusValueNode(input): msg =", msg)
-                //console.log("MQTTMsgBusValueNode(): hap =", msg.hap.characteristic.props)
-
-                var event
-                var dataType
-
-                if (msg.hasOwnProperty("event")) {
-                    event = msg.event.toLowerCase()
-
-                    if (msg.hasOwnProperty("format")) {
-                        dataType = msg.format
-                    } else if (msg.hasOwnProperty("hap")) {
-                        // extract data type
-                        dataType = msg.hap.characteristic.props.format
-                    } else {
-                        RED.log.error("MQTTMsgBusValueNode(input): unable to locate datatype in message")
-                        return
-                    }
-                } else if(typeof msg.payload === 'object') {
-                    //console.log("MQTTMsgBusValueNode(): msg is object")
-
-                    if (msg.payload.hasOwnProperty("event")) {
-                        event = msg.payload.event.toLowerCase()
-                    } else {
-                        RED.log.error("MQTTMsgBusValueNode(input): msg.payload object does not contain 'event'")
-                        return
-                    }
-
-                    if (msg.payload.hasOwnProperty("datatype")) {
-                        dataType = msg.payload.datatype
-                    } else {
-                        RED.log.error("MQTTMsgBusValueNode(input): msg.payload object does not contain 'datatype'")
-                        return
-                    }
-
-                    if (msg.payload.hasOwnProperty("value")) {
-                        msg.payload = msg.payload.value
-                    } else {
-                        RED.log.error("MQTTMsgBusValueNode(input): msg.payload object does not contain 'value'")
-                        return
-                    }
-                } else {
-                    event    = msg.topic.toLowerCase()
-                    dataType = node.dataType
-                }
-
-                var topicNotExist = node.lastVal[event] === undefined
-                
-                if (!topicNotExist) {
-                    if (node.lastVal[event] != msg.payload) {
-                        RED.log.debug("MQTTMsgBusValueNode(): unequal")
-                        node.lastVal[event] = msg.payload
-                    } else {
-                        RED.log.debug("MQTTMsgBusValueNode(): equal, not sending")
-                        return
-                    }
-                } else {
-                    RED.log.debug("MQTTMsgBusValueNode(): not exist")
-                    node.lastVal[event] = msg.payload
-                }
-  
-                var d = {
-                    "d": {
-                        "_type":    event,
-                        "value":    msg.payload
-                    }
-                }
-
-                //
-                // build topic
-                //
-                var topic = topicValuePublish(node.clientConn, node.nodename, node.dataId, dataType)
-
-                var m = {}
-                m.topic   = topic
-                m.payload = JSON.stringify(d)
-                m.qos     = node.qos
-                m.retain  = node.retain
-
-                RED.log.debug("MQTTMsgBusValueNode(publish): msg =", m)
-                node.brokerConn.publish(m)  // send the message
-            })
-
-            this.on('close', function(done) {
-                if (node.brokerConn) {
-                    node.brokerConn.unsubscribe(node.topic, node.id)
-                    node.brokerConn.deregister(node, done)
-                }
-            })
+        if (node.alive == null) {
+            RED.log.debug("startAliveTimer(): first time; " + node.nodename)
+            node.alive = setTimeout(aliveTimerExpired, node.wdt + 5000, node)
         } else {
-            this.error(RED._("msgbus.errors.missing-config"))
+            RED.log.debug("startAliveTimer(): not first time; " + node.nodename)
+            clearTimeout(node.alive)
+            node.alive = setTimeout(aliveTimerExpired, node.wdt + 5000, node)
+
+            RED.log.debug("startAliveTimer(): node.wdtStatus = " + node.wdtStatus)
+
+            if (node.wdtStatus != 1) {
+                node.wdtStatus = 1
+
+                var msg = {
+                    topic:   "status",
+                    payload: "online"
+                }
+                   
+                node.send([null, null, msg])
+            }
         }
     }
 
-    RED.nodes.registerType("msgbus-v2 io", MQTTMsgBusValueNode)
+    function aliveTimerExpired(node) {
+        RED.log.debug("aliveTimerExpired(): " + node.nodename)
 
-    //
-    //
-    //
-    function onValueHandler(node, mqtt, topic, payload) {
-        var tokenizer = topic.split("/")
-        var count     = tokenizer.length
+        /*
+        node.wdtStatus:
+        -1 = First time
+        0  = Not connected
+        1  = Connected
+        */
 
-        if (count != 8) {
-            node.error("onStatusHandler(): invalid topic; count != 8 --" + topic)
-        } else if (tokenizer[0] != node.clientConn.domain) {
-            node.error("onStatusHandler(): invalid topic; not our domain -- " + topic)
-        } else if(tokenizer[1] != msgbusSelf) {
-            node.error("onStatusHandler(): invalid topic; not our bus -- " + topic)
-        } else if (tokenizer[2] != msgbusVersion) {
-            node.error("onStatusHandler(): invalid topic; not our version -- " + topic)
-        } else if (tokenizer[4] != node.clientConn.nodename) {
-            var nodename = tokenizer[4]
-            var service  = tokenizer[5]
-            var dataId   = tokenizer[6]
-            var dataType = tokenizer[7]
-
-            RED.log.debug("onValueHandler(): nodename =", nodename)
-            RED.log.debug("onValueHandler(): service  =", service)
-            RED.log.debug("onValueHandler(): dataId   =", dataId)
-            RED.log.debug("onValueHandler(): dataType =", dataType)
-
-            if (service == msgbusServiceOnramp) {
-                var obj = JSON.parse(payload.toString())
-
-                // validate object
-                if (!obj.hasOwnProperty("d")) {
-                    node.error("onValueHandler(): invalid object; 'd' is missing")
-                } else if (!obj.d.hasOwnProperty("_type")) {
-                    node.error("onValueHandler(): invalid object; 'd._type' is missing")
-                } else if (!obj.d.hasOwnProperty("value")) {
-                    node.error("onValueHandler(): invalid object; 'd.value' is missing")
-                } else {
-                    if (dataType == msgbusTypeString) {
-
-                    } else if (dataType == msgbusTypeBool) {
-
-                    } else if (dataType == msgbusTypeFloat) {
-
-                    } else if (dataType == msgbusTypeUInt8) {
-
-                    } else if (dataType == msgbusTypeUInt32) {
-
-                    } else if (dataType == msgbusTypeInt32) {
-
-                    } else if (dataType == msgbusTypeUInt64) {
-
-                    } else {
-                        node.error("onValueHandler(): invalid data type; " + dataType)
-                        return
-                    }
-
-                    topic   = obj.d._type       // aka 'event'
-                    payload = obj.d.value
-
-                    RED.log.debug("onValueHandler(): out topic   =", topic)
-                    RED.log.debug("onValueHandler(): out payload =", payload)
-
-                    var msg = {
-                        topic:   topic,
-                        payload: payload
-                    }
-
-                    var topicNotExist = node.lastVal[topic] === undefined
-                    
-                    if (!topicNotExist) {
-                        if (node.lastVal[topic] != payload) {
-                            RED.log.debug("onValueHandler(): unequal")
-                            node.lastVal[topic] = payload
-                            //node.send(msg)
-                        } else {
-                            //console.log("onValueHandler(): equal, not sending")
-                        }
-                    } else {
-                        RED.log.debug("onValueHandler(): not exist")
-                        node.lastVal[topic] = payload
-                        //node.send(msg)
-                    }
-                    
-                    node.send(msg)
-
-                    RED.log.debug("onValueHandler(): node.lastVal =", node.lastVal)
-                }
+        RED.log.debug("aliveTimerExpired(): node.wdtStatus = " + node.wdtStatus)
+        
+        if (node.wdtStatus != 0) {
+            node.wdtStatus = 0
+            
+            var msg = {
+                topic:   "status",
+                payload: "offline"
             }
-        } else {
-            RED.log.debug("onValueHandler(): node.clientConn.nodename =", node.clientConn.nodename)
+                
+            node.send([null, null, msg])
         }
     }
 }
